@@ -81,8 +81,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
-static void MX_ETH_Init(void);
 static void MX_TIM12_Init(void);
+static void MX_ETH_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -90,7 +90,14 @@ static void MX_TIM12_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 volatile uint32_t timeElapsedMs = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
+    if (GPIO_Pin == GPIO_PIN_13) { // Pin PC13 (change to the actual pin)
+        // Perform your desired action here upon the rising edge of the clock signal
+        // For example, toggle or set/clear the state of another GPIO pin
+        HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1); // Replace with your desired GPIO pin and action
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -122,7 +129,22 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  __HAL_RCC_GPIOC_CLK_ENABLE(); // Enable clock for GPIOF
+  __HAL_RCC_GPIOE_CLK_ENABLE(); // Enable clock for GPIOF
 
+      GPIO_InitTypeDef GPIO_InitStruct;
+      GPIO_InitStruct.Pin = GPIO_PIN_13; // Pin PF6 (change to the actual pin)
+      GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // Interrupt on rising edge
+      GPIO_InitStruct.Pull = GPIO_NOPULL; // No pull-up/pull-down
+      HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  	GPIO_InitTypeDef GPIOE_init = {};
+  	GPIOE_init.Pin = GPIO_PIN_1;
+  	GPIOE_init.Mode = GPIO_MODE_OUTPUT_PP;
+  	HAL_GPIO_Init(GPIOE, &GPIOE_init);
+
+      HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+      HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -153,11 +175,12 @@ HSEM notification */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
-  MX_ETH_Init();
   MX_TIM12_Init();
+  MX_ETH_Init();
   /* USER CODE BEGIN 2 */
   //HAL_TIM_Base_Start_IT(&htim16);
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
+
 
   /* USER CODE END 2 */
 
@@ -238,10 +261,13 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
+
+
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
+  RCC->AHB1ENR |= (RCC_AHB1ENR_ETH1MACEN_Msk);
 }
 
 /**
@@ -273,6 +299,7 @@ static void MX_ETH_Init(void)
   heth.Init.TxDesc = DMATxDscrTab;
   heth.Init.RxDesc = DMARxDscrTab;
   heth.Init.RxBuffLen = 1524;
+
 
   /* USER CODE BEGIN MACADDRESS */
 
@@ -328,7 +355,7 @@ static void MX_TIM12_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 2;
+  sConfigOC.Pulse = 1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim12, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
@@ -457,6 +484,10 @@ int _write(int file, char *ptr, int len){
 	return len;
 }
 
+void EXTI15_10_IRQHandler(void) {
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13); // Call the HAL handler
+}
+
 //void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 ////	printf("time elapsed is: %u, clock is on %u\n", (HAL_GetTick() - timeElapsedMs), HAL_GPIO_ReadPin(GPIOF, GPIO_PIN_6));
 ////	timeElapsedMs = HAL_GetTick();
@@ -469,12 +500,20 @@ int _write(int file, char *ptr, int len){
 
 void GPIO_Config(void){
 	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOE_CLK_ENABLE();
 	//__HAL_RCC_GPIOC_CLK_ENABLE();
 
 	GPIO_InitTypeDef GPIOB_init = {};
 	GPIOB_init.Pin = GPIO_PIN_0;
 	GPIOB_init.Mode = GPIO_MODE_OUTPUT_PP;
 	HAL_GPIO_Init(GPIOB, &GPIOB_init);
+
+	GPIO_InitTypeDef GPIOE_init = {};
+		GPIOB_init.Pin = GPIO_PIN_1;
+		GPIOB_init.Mode = GPIO_MODE_OUTPUT_PP;
+		HAL_GPIO_Init(GPIOE, &GPIOE_init);
+
+
 
 
 }
