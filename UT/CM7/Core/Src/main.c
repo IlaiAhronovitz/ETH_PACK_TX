@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -101,6 +102,7 @@ uint8_t bitPosition = 0;    // Bit position tracker
 uint8_t bytePosition = 0;
 GPIO_PinState send_frame = GPIO_PIN_RESET;
 start_bits = 0;
+uint32_t startCycle, endCycle, cycleCount;
 //GPIO_PinState packet_ready = GPIO_PIN_RESET;
 // Ethernet frame structure
 typedef struct {
@@ -116,7 +118,18 @@ typedef struct {
 
 uint8_t dataToSend[sizeof(EthernetFrame)];
 
+uint32_t DWT_GetCycleCount(void) {
+    return DWT->CYCCNT;
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+//	printf("here\n");
+	DWT->CYCCNT = 0;
+	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+	startCycle = DWT->CYCCNT;
+
+	    // Command or operation to measure
+
     if (GPIO_Pin == GPIO_PIN_6 && send_frame == GPIO_PIN_SET) { // Pin PF6 (change to the actual pin)
         // Perform your desired action here upon the rising edge of the clock signal
         // For example, toggle or set/clear the state of another GPIO pin
@@ -129,6 +142,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 //    	             bitPosition = 0;  // Reset the bit position for the next transmission
 //    	             bytePosition++;
 //    	         }
+
+
+
+
     	if(start_bits < 2){
     		start_bits++;
     		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
@@ -156,8 +173,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
        	 }
 
 //           HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2); // Replace with your desired GPIO pin and action
-       	HAL_TIM_Base_Start_IT(&htim16);
+ 	    // Measure cycle count after the command
+// 	    uint32_t endCycle = DWT_GetCycleCount();
+// 	    uint32_t cycleCount = endCycle - startCycle;
+       	 HAL_TIM_Base_Start_IT(&htim16);
+         endCycle = DWT->CYCCNT;
+
+          	    cycleCount = endCycle - startCycle;
+          	    printf("Total cyc = %u\n", cycleCount);
+
     	}
+// 	    uint32_t endCycle = DWT_GetCycleCount();
+// 	    uint32_t cycleCount = endCycle - startCycle;
+// 	    printf("Total cyc = %u\n", cycleCount);
 //    	 if(bytePosition >= sizeof(EthernetFrame)){
 ////    		 bitPosition = 0;  // Reset the bit position for the next transmission
 ////    		 bytePosition = 0;
@@ -181,6 +209,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 //
 //        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2); // Replace with your desired GPIO pin and action
     }
+    startCycle = DWT->CYCCNT;
+
+
 
     if (GPIO_Pin == GPIO_PIN_13 && send_frame == GPIO_PIN_RESET) { // Pin PC13 (change to the actual pin)
         // Perform your desired action here upon the rising edge of the clock signal
@@ -190,8 +221,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         send_frame = GPIO_PIN_SET;
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
     }
+//    endCycle = DWT->CYCCNT;
+//
+//    cycleCount = endCycle - startCycle;
+//         	    printf("pressed button if cyc = %u\n", cycleCount);
 
-
+//    uint32_t endCycle = DWT->CYCCNT;
+//
+//     	    uint32_t cycleCount = endCycle - startCycle;
+//     	    printf("Total cyc = %u\n", cycleCount);
 }
 
 uint8_t* constructEthernetPacket(
@@ -254,6 +292,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	GPIO_Config();
 	uint16_t timer_val;
+	DWT_Init();
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
   int32_t timeout;
@@ -611,7 +650,7 @@ static void MX_TIM16_Init(void)
   htim16.Instance = TIM16;
   htim16.Init.Prescaler = 1-1;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 1000-1;
+  htim16.Init.Period = 10000-1;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -761,6 +800,20 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+int _write(int file, char *ptr, int len){
+	int var;
+	for (var = 0; var < len; ++var) {
+		ITM_SendChar(*ptr++);
+	}
+	return len;
+}
+
+void DWT_Init(void) {
+        DWT->CYCCNT = 0;
+        DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+
 
 void EXTI9_5_IRQHandler(void) {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6); // Call the HAL handler
