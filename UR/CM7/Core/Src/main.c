@@ -123,7 +123,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         // Perform your desired action here upon the rising edge of the clock signal
         // For example, toggle or set/clear the state of another GPIO pin
     	rBit = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2);
-    	lcd_put_cur(lcd_row, lcd_col);
+//    	lcd_put_cur(lcd_row, lcd_col);
 //    	lcd_col++;
 //    	if(lcd_col == 16){
 //    		lcd_row = (lcd_row + 1)%2;
